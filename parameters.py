@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 
 import pyqtgraph.pg
+=======
+import numpy as np
+
+import pyqtgraph as pg
+>>>>>>> f871928e167701147c65c321b7102281e93ead92
 from pyqtgraph.Qt import QtCore, QtGui
 
 app = QtGui.QApplication([])
@@ -20,11 +26,11 @@ class BlockMatrixParameter(pTypes.GroupParameter):
              [np.random.randn(m,m), -np.eye(m)]]
         (A,B),(C,D) = M
 
-        self.addChild({'name': 'seed', 'type': 'int', 'value': seed})
+        self.addChild({'name': 'seed', 'type': 'int', 'value': 0})
         self.seed = self.param('seed')
         self.seed.sigValueChanging.connect(self.changed)
 
-        for e,E in zip([['a','d','b','c'], (A,D,B,C)]):
+        for e,E in zip(['a','d','b','c'], (A,D,B,C)):
             (e11,e12),(e21,e22) = E
             self.addChild({'name': e+'11', 'type':'float', 'value': e11})
             self.addChild({'name': e+'12', 'type':'float', 'value': e12})
@@ -41,7 +47,10 @@ class BlockMatrixParameter(pTypes.GroupParameter):
     def changed(self):
         self.callback()
 
-params = [BlockMatrixParameter(name='M')]
+def calc():
+    pass
+
+params = [BlockMatrixParameter(calc, name='M')]
 p = Parameter.create(name='params', type='group', children=params)
 
 t = ParameterTree()
