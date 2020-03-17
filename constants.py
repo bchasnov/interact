@@ -1,0 +1,3 @@
+WINDOW_SIZE = 3
+WINDOW_TITLE = "Interact"
+
