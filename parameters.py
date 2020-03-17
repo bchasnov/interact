@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-
-import pyqtgraph.pg
-=======
 import numpy as np
 
 import pyqtgraph as pg
->>>>>>> f871928e167701147c65c321b7102281e93ead92
 from pyqtgraph.Qt import QtCore, QtGui
 
 app = QtGui.QApplication([])
@@ -45,7 +40,7 @@ class BlockMatrixParameter(pTypes.GroupParameter):
             p.sigValueChanging.connect(self.changed)
 
     def changed(self):
-        self.callback()
+        self.callback([p.value for p in params])
 
 def calc():
     pass
