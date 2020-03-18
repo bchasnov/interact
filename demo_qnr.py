@@ -2,7 +2,6 @@ import numpy as np
 from constants import *
 import benpy as bp
 from parameters import InteractParameter
-
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 
@@ -11,17 +10,53 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 
 import numpy.linalg as la
 
-config = [('seed', 0), 
-        ('nash', False), ('stable', False), 
+config = [('seed', 1), 
+        ('nash', False), ('nonnash', False), 
+        ('stable', False), ('unstable', False), 
         ('diagonalize', True),
         ('dim1', 2), ('dim2', 2),
         ('Amin', -1.), ('Amax', 1.), 
         ('Dmin', -1.), ('Dmax', 1.), 
-        ('Pnorm', 1.), ('Knorm', 1.)]
+        ('Pnorm', 1.), ('Knorm', 1.),
+        ('max_samples', 1e2)]
 
-def init(p):
-    np.random.seed(int(p['seed']))
+def init(params):
+    max_samples = int(params['max_samples'])
+    for seed in range(max_samples):
+        M = sample(params, seed)
+        print(params)
+        if not params['nash'] \
+            and not params['nonnash'] \
+            and not params['stable'] \
+            and not params['unstable']:
+            break
+
+        Aeigs = la.eigvals(M[0][0])
+        Deigs = la.eigvals(M[1][1])
+
+        if params['nash'] and \
+            np.all(np.real(Aeigs) < 0) and \
+            np.all(np.real(Deigs) < 0): break
+        if params['nonnash'] and \
+            (np.any(np.real(Aeigs) >= 0) or \
+            np.any(np.real(Deigs) >= 0)): break
+
+        J = bp.block(M)
+        eigs = la.eigvals(J)
+        if params['stable'] and np.all(np.real(eigs)<0):
+            break
+        if params['unstable'] and np.any(np.real(eigs)>=0):
+            break
+
+    else:
+        print("couldn't find a valid matrix in {} samples".format(max_samples))
+
+    return M
+
+def sample(p, seed):
+    np.random.seed((1+seed)*int(p['seed']))
     m,n = int(p['dim1']), int(p['dim2'])
+
     if p['diagonalize']:
         A = np.diag(np.random.uniform(p['Amin'], p['Amax'], m))
         D = np.diag(np.random.uniform(p['Dmin'], p['Dmax'], n))
@@ -36,23 +71,27 @@ def init(p):
     
     return (A, P-K),(P.T+K.T, D)
 
-def calc(M):
-    J = bp.block(M)
-    eigs = la.eigvals(J)
-    return eigs
+def plot_eigs(eigs):
+    s1.clear()
+    spots = [{'pos': [np.real(z), np.imag(z)], 'data': i} for i, z in enumerate(eigs)]
+    s1.addPoints(spots)
 
-def plot(eigs):
+def plot_numrange(eigs):
     s1.clear()
     spots = [{'pos': [np.real(z), np.imag(z)], 'data': i} for i, z in enumerate(eigs)]
     s1.addPoints(spots)
 
 def preview(params):
     M = init(params)
-    out = calc(M)
-    plot(out)
+    J = bp.block(M)
+    eigs = la.eigvals(J)
+    plot_eigs(eigs)
+    return M
 
 def run(params):
-    preview(params)
+    M = preview(params)
+    numrange = bp.numrange(M)
+    plot_numrange(numrange)
 
 w = pg.GraphicsLayoutWidget(show=True, border=1)
 p1 = w.addPlot(row=0,col=0)
