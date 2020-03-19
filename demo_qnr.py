@@ -72,35 +72,34 @@ def sample(p, seed):
     return (A, P-K),(P.T+K.T, D)
 
 def plot_eigs(eigs):
-    s1.clear()
-    spots = [{'pos': [np.real(z), np.imag(z)], 'data': i} for i, z in enumerate(eigs)]
-    s1.addPoints(spots)
+    p1_eigs.setData(np.real(eigs), np.imag(eigs))
 
 def plot_numrange(eigs):
-    s1.clear()
-    spots = [{'pos': [np.real(z), np.imag(z)], 'data': i} for i, z in enumerate(eigs)]
-    s1.addPoints(spots)
+    p1_qnr.setData(np.real(eigs), np.imag(eigs))
 
 def preview(params):
     M = init(params)
     J = bp.block(M)
     eigs = la.eigvals(J)
+    numrange = bp.numrange(M)
+
     plot_eigs(eigs)
+    plot_numrange(numrange)
     return M
 
 def run(params):
     M = preview(params)
-    numrange = bp.numrange(M)
-    plot_numrange(numrange)
 
 w = pg.GraphicsLayoutWidget(show=True, border=1)
-p1 = w.addPlot(row=0,col=0)
-s1 = pg.ScatterPlotItem()
-p1.addItem(s1)
+p1 = w.addPlot(row=0,col=0,lockAspect=1)
+p1_eigs = pg.PlotDataItem(pen=None, symbol='+', lockAspect=1)
+p1_qnr = pg.PlotDataItem(pen=None, symbol='o', lockAspect=1)
+p1.addItem(p1_eigs)
+p1.addItem(p1_qnr)
 
 p2 = w.addPlot(row=1,col=0)
 s2 = pg.ScatterPlotItem()
-p2.addItem(s2)
+p2.addItem(p1_qnr)
 
 params = [InteractParameter(params=config, changing=preview, changed=run, name='M')]
 p = Parameter.create(name='params', type='group', children=params)

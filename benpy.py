@@ -2,8 +2,17 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit, pmap
 
-def block(M):
+def block(M, np=np):
     return np.vstack([np.hstack(m) for m in M])
+
+def rotation2(theta, np=np):
+    return np.array([[np.cos(theta), -np.sin(theta)],
+                     [np.sin(theta), np.cos(theta)]])
+
+def grid(xlim, ylim, xnum, ynum, np=np):
+    x = np.linspace(*xlim, xnum)
+    y = np.linspace(*ylim, ynum)
+    return np.array(np.meshgrid(x,y)).reshape(2, xnum*ynum).T, (xnum, ynum)
 
 """ Numerical range of matrix M = [[A,B],[C,D]] """
 def numerical_range(A, N=int(1e5)):
@@ -44,3 +53,4 @@ def quadratic_numerical_range(M, num=int(1e4)):
 
 def numrange(M, num=int(1e4)):
     return quadratic_numerical_range(M)
+
