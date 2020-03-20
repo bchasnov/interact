@@ -12,28 +12,30 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 
 import numpy.linalg as la
 
+zero = float(0)
 config = [('a1', -1.),
-          ('a2', -.5),
-          ('theta_a', 0.),
-          ('d1', -1.),
-          ('d2', -.5),
-          ('theta_d', 0.),
-          ('p1', -1),
-          ('p2', 1.),
-          ('theta_p', 0.),
-          ('k1', -1.),
-          ('k2', 1.),
-          ('theta_k', 0.)]
+          ('a2', -.8),
+          ('theta_a', zero),
+          ('d1', -.6),
+          ('d2', -.4),
+          ('theta_d', zero),
+          ('p1', zero),
+          ('p2', zero),
+          ('theta_p', zero),
+          ('k1', zero),
+          ('k2', zero),
+          ('theta_k', zero)]
 
 def init(a1,a2,theta_a, d1,d2,theta_d,
          p1,p2,theta_p, k1,k2,theta_k,**kwargs):
-    rot = lambda x: bp.rotation2(x,np=jnp)
+    np = jnp
+    rot = lambda t: np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
     diag = lambda x,y: np.array([[x,0],[0,y]])
     
     Ra = rot(theta_a)
-    Rd = rot(theta_d)#*np.pi/8)
-    Rp = rot(theta_p)#*np.pi/8)
-    Rk = rot(theta_k)#*np.pi/8)
+    Rd = rot(theta_d)
+    Rp = rot(theta_p)
+    Rk = rot(theta_k)
     
     Sa = diag(a1,a2)
     Sd = diag(d1,d2)
@@ -47,9 +49,6 @@ def init(a1,a2,theta_a, d1,d2,theta_d,
     
     return ((A,P-K), (P.T+K.T, D))
 
-def isStable(M):
-    return jnp.all(jnp.real(jnp.linalg.eigvals(M)<0))
-
 def run(params):
     M = init(**params)
     J = bp.block(M, np=jnp)
@@ -58,9 +57,6 @@ def run(params):
     return eigs, qnum 
 
 def preview(params):
-    xlim = [0, 2*np.pi]
-    ylim = [0, 2*np.pi]
-
     eigs, qnum = run(params)
     c = np.max(np.abs(np.real(qnum)))
     p_eigs.setRange(xRange=(-c,c), yRange=(-c,c))
@@ -78,8 +74,14 @@ def preview(params):
                         for m in row]) 
         for row in J]))
 
-    grid, shape = bp.grid(xlim=xlim, ylim=ylim, xnum=64, ynum=64)
+    return M
 
+def update(params):
+    M = preview(params)
+
+    xlim = [0, 2*np.pi]
+    ylim = [0, 2*np.pi]
+    grid, shape = bp.grid(xlim=xlim, ylim=ylim, xnum=64, ynum=64)
 
     def scan(s):
         myparams = dict()
@@ -114,16 +116,11 @@ def preview(params):
 
     for p in plt_imv:
         p.setLevels([data_min, data_max])
+
     return M
-
-def update(params):
-    M = preview(params)
-
     
 pg.setConfigOptions(background=(255,255,255))
-
 w = pg.GraphicsLayoutWidget()
-w.resize(800,400)
 w.show()
 
 color1 = "#F5E800"
@@ -166,7 +163,7 @@ win.setLayout(layout)
 layout.addWidget(t, 1, 0, 1, 1)
 layout.addWidget(w, 1, 1, 1, 1);
 win.show()
-win.resize(800,800)
+win.resize(1200,800)
 
 if __name__ == '__main__':
     QtGui.QApplication.instance().exec_()
