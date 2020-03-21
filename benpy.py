@@ -12,7 +12,9 @@ def rotation2(theta, np=np):
 def grid(xlim, ylim, xnum, ynum, np=np):
     x = np.linspace(*xlim, xnum)
     y = np.linspace(*ylim, ynum)
-    return np.array(np.meshgrid(x,y)).reshape(2, xnum*ynum).T, (xnum, ynum)
+    out = np.array(np.meshgrid(x,y))
+    out = out.reshape(2, xnum*ynum).T
+    return out, (xnum, ynum)
 
 """ Numerical range of matrix M = [[A,B],[C,D]] """
 def numerical_range(A, N=int(1e5)):
