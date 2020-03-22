@@ -1,19 +1,22 @@
-# -*- coding: utf -*-
+# -*- coding: utf-8 -*-
+"""
+This example demonstrates the use of pyqtgraph's parametertree system. This provides
+a simple way to generate user interfaces that control sets of parameters. The example
+demonstrates a variety of different parameter types (int, float, list, etc.)
+as well as some customized parameter types
+
+"""
+
+
+import initExample ## Add path to library (just for examples; you do not need this)
+
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-from copy import copy
 
-import numpy as np
 
 app = QtGui.QApplication([])
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
-from pyqtgraph.widgets.MatplotlibWidget import MatplotlibWidget
-
-import jax.numpy as jnp
-from jax import lax
-from jax import vmap
-
 
 
 ## test subclassing parameters
@@ -21,7 +24,7 @@ from jax import vmap
 class ComplexParameter(pTypes.GroupParameter):
     def __init__(self, **opts):
         opts['type'] = 'bool'
-        opts['value'] = False
+        opts['value'] = True
         pTypes.GroupParameter.__init__(self, **opts)
         
         self.addChild({'name': 'A = 1/B', 'type': 'float', 'value': 7, 'suffix': 'Hz', 'siPrefix': True})
@@ -37,7 +40,6 @@ class ComplexParameter(pTypes.GroupParameter):
     def bChanged(self):
         self.a.setValue(1.0 / self.b.value(), blockSignal=self.aChanged)
 
-        
 
 ## test add/remove
 ## this group includes a menu allowing the user to add new parameters into its child list
@@ -56,122 +58,32 @@ class ScalableGroup(pTypes.GroupParameter):
         }[typ]
         self.addChild(dict(name="ScalableParam %d" % (len(self.childs)+1), type=typ, value=val, removable=True, renamable=True))
 
-class MyParameters(pTypes.GroupParameter):
-    def __init__(self, config, callback, speed, **opts):
-        opts['type'] = 'group'
-        pTypes.GroupParameter.__init__(self, **opts)
-        self.myParams = dict()
-        self.callback = callback
-
-        for name, value in config.items():
-            if type(value) in [float, int]:
-                self.addChild({'name': name, 'type': 'float', 'value': value})
-            elif type(value) is str:
-                self.addChild({'name': name, 'type': 'str', 'value': value})
-            else:
-                raise
-
-            p = self.param(name)
-            n = copy(name)
-            if speed is 'fast':
-                p.sigValueChanging.connect(lambda param, value: self._callback(n, value))
-            elif speed is 'slow':
-                p.sigValueChanged.connect(lambda: self._callback(n))
-                p.sigValueChanged.connect(lambda param, value: self._callback(param.name(), value))
-            else:
-                raise
-            self.myParams[name] = p
-    def _callback(self, name, value=None):
-        print("My Parameter changed:", name)
-        d = {name: p.value() for name,p in self.myParams.items()}
-        print(d)
-        if value is not None: d[name]=value
-        print(d)
-        self.callback(d)
-        
-    
 
 
-config_cost = dict(softmax_temp=1, softmax_shift1=0, softmax_shift2=0, reg_l2_self=2/5, reg_l2_other=0, reg_ent_self=0, reg_ent_other=0)
-config_stream = dict(N=32)
-config_grid = dict(xlim=4, ylim=4, xcenter=0, ycenter=0)
-config_traj = dict(x1=1., x2=1., learning_rate=2e-2, time_scale=1., num_iter=1e4, noise=0)
-config_plot = dict(xlabel='$x_1$', ylabel='$x_2$')
-config_plot = {**config_grid, **config_plot}
-
-mw = MatplotlibWidget(size=(1,1))
-subplot = mw.getFigure().add_subplot(111)
-line, = subplot.plot(np.linspace(0,1,100))
-
-
-J = jnp.array([[2,-1],[1,2.]])
-def g(x, k):
-    return J@x
-
-def scan(g, x0, num_iter):
-    return lax.scan(lambda x,k: (x-g(x,k), x),
-            x0, np.arange(int(num_iter)))[1]
-
-def update_cost(params):
-    if params is not None: config_cost = params
-
-    mw.draw()
-
-def update_traj(params):
-    print(params)
-    if params is not None: config_traj = params
-
-    x0 = jnp.array([config_traj['x1'], config_traj['x2']])
-    lr = config_traj['learning_rate']
-    data = scan(lambda *x: lr*g(*x), x0, config_traj['num_iter'])
-    line.set_xdata(data[:,0])
-    line.set_ydata(data[:,1])
-    mw.draw()
-
-def update_grid(params):
-    if params is not None: config_grid = params
-
-    update_cost(None)
-
-def update_stream(params):
-    if params is not None: config_stream = params
-    update_cost(None)
-
-def update_plot(params):
-    if params is not None: config_plot = params
-    def lims(s):
-        lim, cen = config_plot[s+'lim'], config_plot[s+'center']
-        return [cen-lim/2, cen+lim/2]
-    subplot.set_xlim(lims('x'))
-    subplot.set_ylim(lims('y'))
-    subplot.set_xlabel(config_plot['xlabel'])
-    mw.draw()
 
 params = [
-        MyParameters(name='Trajectory', speed='fast', config=config_traj, callback=update_traj),
-        MyParameters(name='Cost ', speed='slow', config=config_cost, callback=update_cost),
-        MyParameters(name='Grid', speed='slow', config=config_grid, callback=update_grid),
-        MyParameters(name='Stream', speed='slow', config=config_stream, callback=update_stream),
-        MyParameters(name='Plot', speed='fast', config=config_plot, callback=update_plot),
-    {'name': 'Stackelberg', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
-    #{'name': 'Gradient', 'type': 'colormap'},
-    #{'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
-    #{'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
-    #{'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
-    {'name': 'Reset', 'type': 'action'},
-    ComplexParameter(name='Custom parameter group (reciprocal values)'),
-    ScalableGroup(name="Expandable Parameter Group", children=[
-        {'name': 'ScalableParam 1', 'type': 'str', 'value': "default param 1"},
-        {'name': 'ScalableParam 2', 'type': 'str', 'value': "default param 2"},
-    ]),
-    {'name': 'Extra Parameter Options', 'type': 'group', 'children': [
-        {'name': 'Read-only', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'readonly': True},
-        {'name': 'Renamable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'renamable': True},
-        {'name': 'Removable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'removable': True},
+    {'name': 'Basic parameter data types', 'type': 'group', 'children': [
+        {'name': 'Integer', 'type': 'int', 'value': 10},
+        {'name': 'Float', 'type': 'float', 'value': 10.5, 'step': 0.1},
+        {'name': 'String', 'type': 'str', 'value': "hi"},
+        {'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
+        {'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
+        {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
+        {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
+        {'name': 'Gradient', 'type': 'colormap'},
+        {'name': 'Subgroup', 'type': 'group', 'children': [
+            {'name': 'Sub-param 1', 'type': 'int', 'value': 10},
+            {'name': 'Sub-param 2', 'type': 'float', 'value': 1.2e6},
+        ]},
+        {'name': 'Text Parameter', 'type': 'text', 'value': 'Some text...'},
+        {'name': 'Action Parameter', 'type': 'action'},
     ]},
-]
-
-params += [
+    {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
+        {'name': 'Units + SI prefix', 'type': 'float', 'value': 1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
+        {'name': 'Limits (min=7;max=15)', 'type': 'int', 'value': 11, 'limits': (7, 15), 'default': -6},
+        {'name': 'DEC stepping', 'type': 'float', 'value': 1.2e6, 'dec': True, 'step': 1, 'siPrefix': True, 'suffix': 'Hz'},
+        
+    ]},
     {'name': 'Save/Restore functionality', 'type': 'group', 'children': [
         {'name': 'Save State', 'type': 'action'},
         {'name': 'Restore State', 'type': 'action', 'children': [
@@ -179,6 +91,16 @@ params += [
             {'name': 'Remove extra items', 'type': 'bool', 'value': True},
         ]},
     ]},
+    {'name': 'Extra Parameter Options', 'type': 'group', 'children': [
+        {'name': 'Read-only', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'readonly': True},
+        {'name': 'Renamable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'renamable': True},
+        {'name': 'Removable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'removable': True},
+    ]},
+    ComplexParameter(name='Custom parameter group (reciprocal values)'),
+    ScalableGroup(name="Expandable Parameter Group", children=[
+        {'name': 'ScalableParam 1', 'type': 'str', 'value': "default param 1"},
+        {'name': 'ScalableParam 2', 'type': 'str', 'value': "default param 2"},
+    ]),
 ]
 
 ## Create tree of Parameter objects
@@ -186,7 +108,6 @@ p = Parameter.create(name='params', type='group', children=params)
 
 ## If anything changes in the tree, print a message
 def change(param, changes):
-    
     print("tree changes:")
     for param, change, data in changes:
         path = p.childPath(param)
@@ -198,18 +119,11 @@ def change(param, changes):
         print('  change:    %s'% change)
         print('  data:      %s'% str(data))
         print('  ----------')
-
-        if 'softmax temperature' in childName:
-            line.set_ydata(np.sin(0.5*np.linspace(0,1,100)*data))
-            mw.draw()
-
-        
     
 p.sigTreeStateChanged.connect(change)
 
 
 def valueChanging(param, value):
-
     print("Value changing (not finalized): %s %s" % (param, value))
     
 # Too lazy for recursion:
@@ -237,25 +151,17 @@ p.param('Save/Restore functionality', 'Restore State').sigActivated.connect(rest
 t = ParameterTree()
 t.setParameters(p, showTop=False)
 t.setWindowTitle('pyqtgraph example: Parameter Tree')
-#t2 = ParameterTree()
-#t2.setParameters(p, showTop=False)
-mw = MatplotlibWidget(size=(1,1))
-subplot = mw.getFigure().add_subplot(111)
-line, = subplot.plot(np.linspace(0,1,100))
+t2 = ParameterTree()
+t2.setParameters(p, showTop=False)
 
-#win = QtGui.QWidget()
-app = pg.QtGui.QApplication([])
-win = pg.LayoutWidget()
-#layout = pg.LayoutWidget()#QtGui.QGridLayout()
-#win.setLayout(layout)
-cols = 1
-win.addWidget(QtGui.QLabel("Dynamics Simulator"), 0,  0, 1, cols)
-win.addWidget(mw, 1, 0, 1, cols)
-win.addWidget(t, 1, 1, 1, cols,)
+win = QtGui.QWidget()
+layout = QtGui.QGridLayout()
+win.setLayout(layout)
+layout.addWidget(QtGui.QLabel("These are two views of the same data. They should always display the same values."), 0,  0, 1, 2)
+layout.addWidget(t, 1, 0, 1, 1)
+layout.addWidget(t2, 1, 1, 1, 1)
 win.show()
 win.resize(800,800)
-
-mw.draw()
 
 ## test save/restore
 s = p.saveState()

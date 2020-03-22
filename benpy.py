@@ -2,12 +2,34 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit, pmap
 
+class colors():
+    GREEN_BLUE = [(165,255,70), #(40,238,40),
+          (0,157,0),
+          (15,15,15),
+          (0,72,127),
+          (0,26,80)]
+    GREEN_WHITE = [(186,253,0), #(40,238,40),
+          (186,253,0),
+          (15,15,15),
+          (255,255,255),
+          (255,255,255)]
+    BLUE_WHITE = [ 
+        (10,158,240),
+        (10,158,240),
+        (15,15,15),
+        (255,255,255),
+        (255,255,255)]
+    
 def block(M, np=np):
     return np.vstack([np.hstack(m) for m in M])
 
 def rotation2(theta, np=np):
     return np.array([[np.cos(theta), -np.sin(theta)],
                      [np.sin(theta), np.cos(theta)]])
+
+def datehour():
+    return 'datehour'
+
 
 def grid(xlim, ylim, xnum, ynum, np=np):
     x = np.linspace(*xlim, xnum)
