@@ -16,12 +16,12 @@ import numpy.linalg as la
 
 zero = float(0)
 config = [('g', -.4),
-          ('f', .1),
-          ('p', .1),
+          ('f', .3),
+          ('p', .2),
           ('k', zero),
           ('fa', zero),
           ('fd', zero),
-          ('fp', zero),
+          ('fp', .1),
           ('fk', zero),
           ('theta_a', zero),
           ('theta_d', zero),
@@ -31,7 +31,7 @@ config = [('g', -.4),
           ('theta_s_k', zero)]
 
 config_plot = [('res', 32),
-        ('eps', 0.01)]
+        ('eps', 0.001)]
 
 config += config_plot
 
@@ -298,6 +298,11 @@ layout.addWidget(t, 1, 0, 1, 1)
 layout.addWidget(w, 1, 1, 1, 1);
 win.show()
 win.resize(800,1200)
+
+timer = QtCore.QTimer()
+timer.timeout.connect(lambda: update(interact_parameters.values) and timer.stop())
+timer.start(2000)
+
 
 if __name__ == '__main__':
     QtGui.QApplication.instance().exec_()
