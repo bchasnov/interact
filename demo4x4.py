@@ -118,12 +118,12 @@ ones = [[-1,1],[-1,1]]
 pis = [[-np.pi, np.pi],[-np.pi, np.pi]]
 params_plot = [('g','k', ones),
                ('f','p',ones), 
+               ('fa','fd', ones),
+               ('fp','fk', ones),
                ('g', 'theta_r_p', (ones[0], pis[1])),
                ('f', 'theta_r_p', (ones[0], pis[1])),
                ('theta_a','theta_d', pis),
                ('theta_r_p','theta_r_k', pis),
-               ('fa','fd', ones),
-               ('fp','fk', ones),
                ('theta_r_p','theta_s_p', pis),
                ('theta_r_k','theta_s_k', pis)]
 
