@@ -19,46 +19,61 @@ config = [('g', -.4),
           ('f', .3),
           ('p', .2),
           ('k', zero),
-          ('fa', zero),
-          ('fd', zero),
-          ('fp', .1),
-          ('fk', zero),
+          ('da', zero),
+          ('dd', zero),
+          ('dp', .1),
+          ('dk', zero),
+          ('theta1', zero),
+          ('theta2', zero),
           ('theta_a', zero),
           ('theta_d', zero),
-          ('theta_r_p', zero),
-          ('theta_s_p', zero),
-          ('theta_r_k', zero),
-          ('theta_s_k', zero)]
+          ('dtheta_a', zero),
+          ('dtheta_d', zero)]
 
 config_plot = [('res', 32),
-        ('eps', 0.001)]
+        ('eps', 0.0001)]
 
 config += config_plot
 
-def init(g,f,p,k,
-         fa,theta_a, 
-         fd,theta_d,
-         fp,theta_r_p, theta_s_p,
-         fk,theta_r_k, theta_s_k,
-         **kwargs):
-    np = jnp
+ones = [[-1,1],[-1,1]]
+pis = [[-np.pi, np.pi],[-np.pi, np.pi]]
+params_plot = [('g','k', ones),
+               ('f','p',ones), 
+               ('da','dd', ones),
+               ('dp','dk', ones),
+               ('da','p', ones),
+               ('da','k', ones),
+               ('dk','k', ones),
+               ('dp','p', ones),
+               ('g', 'theta_a', (ones[0], pis[1])),
+               ('f', 'dtheta_a', (ones[0], pis[1])),
+               ('theta_a','dtheta_a', pis),
+               ('theta_d','dtheta_a', pis),
+               ('dtheta_a','dtheta_d', pis),
+               ('theta_a','theta_d', pis),]
+#               ('theta1','theta2', pis),
+#               ('dtheta_a','dtheta_d', pis)]
+
+def init(g,f,p,k, da,dd,dp,dk,
+        theta1,theta2, theta_a,theta_d,
+        dtheta_a,dtheta_d, 
+        np=jnp, **kwds):
+    """ Input parameters and output matrix """
     diag = lambda x,y: np.array([[x,0],[0,y]])
     rot = lambda t: np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
     
-    ga = g-f
-    gd = g+f
-    gp = p
-    gk = k
+    a = g-f
+    d = g+f
 
-    Sa = diag(ga-fa, ga+fa)
-    Sd = diag(gd-fd, gd+fd)
-    Sp = diag(gp-fp, gp+fp)
-    Sk = diag(gk-fk, gk+fk)
+    Sa = diag(a-da, a+da)
+    Sd = diag(d-dd, d+dd)
+    Sp = diag(p-dp, p+dp)
+    Sk = diag(k-dk, k+dk)
     
-    A = rot(theta_a) @ Sa @ rot(theta_a).T
-    D = rot(theta_d) @ Sd @ rot(theta_d).T
-    P = rot(theta_s_p) @ Sp @ rot(theta_r_p).T
-    K = rot(theta_s_k) @ Sk @ rot(theta_r_k).T
+    A = rot(theta1) @ Sa @ rot(theta1).T
+    D = rot(theta2) @ Sd @ rot(theta2).T
+    P = rot(theta_a + dtheta_a) @ Sp @ rot(theta_d + dtheta_a).T
+    K = rot(theta_a - dtheta_a) @ Sk @ rot(theta_d - dtheta_d).T
     
     return ((A,P-K), (P.T+K.T, D))
 
@@ -73,16 +88,14 @@ def preview(params):
     """ Fast calculations to preview current parameters """
     eigs, qnum = run(params)
 
-    g = params['g']
-    f = params['f']
-    ga = g-f
-    gd = g+f
-    fa = params['fa']
-    fd = params['fd']
-    a1 = ga - fa
-    a2 = ga + fa
-    d1 = gd - fd
-    d2 = gd + fd
+    g, f = params['g'], params['f']
+
+    a = g-f
+    d = g+f
+    a1 = a + params['da']
+    a2 = a - params['da']
+    d1 = d + params['dd']
+    d2 = d - params['dd']
 
     c = np.max(np.abs(np.real(qnum)))
     c = max(np.max(np.abs(np.imag(qnum))),c)
@@ -114,18 +127,6 @@ def preview(params):
 
     return M
 
-ones = [[-1,1],[-1,1]]
-pis = [[-np.pi, np.pi],[-np.pi, np.pi]]
-params_plot = [('g','k', ones),
-               ('f','p',ones), 
-               ('fa','fd', ones),
-               ('fp','fk', ones),
-               ('g', 'theta_r_p', (ones[0], pis[1])),
-               ('f', 'theta_r_p', (ones[0], pis[1])),
-               ('theta_a','theta_d', pis),
-               ('theta_r_p','theta_r_k', pis),
-               ('theta_r_p','theta_s_p', pis),
-               ('theta_r_k','theta_s_k', pis)]
 
 def update(params, plot=params_plot):
     """ Fills out the plots using current parameters """
@@ -162,7 +163,7 @@ def update(params, plot=params_plot):
             Aeigs = np.linalg.eigvals(A)
             Deigs = np.linalg.eigvals(D)
             return np.max(np.real(np.linalg.eigvals(J))), \
-                    np.all(np.real(Aeigs)<0)*np.all(np.real(Deigs)<0)*1.
+                    np.all(np.real(Aeigs)<0)*np.all(np.real(Deigs)<0)*2.-1.
         return sample
 
     def sample(p, vs):
@@ -196,17 +197,22 @@ def update(params, plot=params_plot):
 
     return M
     
-def savePlot(plt, axes, lims, directory=''):
+def savePlot(plt, axes, lims, directory='', name=''):
     assert len(axes) == len(lims)
     assert len(axes) == 2
 
-    filename = "{}{:.1f}to{:.1f}_{}{:.1f}to{:.1f}".format(
-            axes[0], *lims[0], 
-            axes[1], *lims[1])
+    filename = "{}_{}_{}".format(axes[0], axes[1], name)
 
     filename = os.path.join(directory, filename+ '.png')
     print('Saving', filename)
-    status = plt.qimage.save(filename)
+    #img = QtGui.QImage()
+    #pix = QtGui.QPixmap(img)
+    #painter = QtGui.QPainter(pix)
+    #painter.drawImage(0,0,plt_stable.qimage.mirrored(vertical=True))
+    #painter.setCompositionMode(QtGui.QPainter.CompositionMode_Multiply)
+    #painter.drawImage(0,0,plt_nash.qimage.mirrored(vertical=True))
+    #status = img.save(filename)
+    status = plt.qimage.mirrored(vertical=True).save(filename)
     print('Status:', status)
     #exporter.export(os.path.join(directory, filename, '.png'))
 
@@ -255,8 +261,6 @@ for i, (p1,p2,(xlim,ylim)) in enumerate(params_plot):
         p.param('M', pp[0]).setValue(np.round(x,1))
         p.param('M', pp[1]).setValue(np.round(y,1))
 
-        print(pp, (*e.pos()), (x,y))
-
     plt_imv[-1].mouseClickEvent = click
     plt_imv[-1].show() 
     plt_imv2[-1].show() 
@@ -282,9 +286,9 @@ def savePlots():
     except:
         print('error!')
 
-    for plt,(p1,p2,lims) in zip(plt_imv,params_plot):
-        print(p1,p2)
-        savePlot(plt, (p1,p2), lims,directory=directory)
+    for plt1,plt2,(p1,p2,lims) in zip(plt_imv,plt_imv2,params_plot):
+        savePlot(plt1, (p1,p2), lims,directory=directory, name='stable')
+        savePlot(plt2, (p1,p2), lims,directory=directory, name='nash')
 
 p.param('Save figures').sigActivated.connect(savePlots)
 
