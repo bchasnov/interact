@@ -22,3 +22,5 @@ Then, run
 python3 demo4x4.py
 ```
 for the quadratic numerical range (rotation) demo.
+
+![](screenshot.png)
