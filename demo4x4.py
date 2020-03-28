@@ -1,4 +1,6 @@
 import numpy as np
+import subprocess
+import pickle
 from constants import *
 import benpy as bp
 from parameters import InteractParameter
@@ -13,6 +15,51 @@ app = QtGui.QApplication([])
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
 import numpy.linalg as la
+
+class ComputeJax():
+    def __init__(self, param_dict, param_pair):
+        """ param_dict: dictionary of parameters 
+            param_pair: list of two parammeters to scan
+            samples: number of points (width and height)
+            lim: range of params [[xmin,xmax],[ymin,ymax]]"""
+        self.param_dict = dict()
+        self.param_dict.update(param_dict)
+        self.param_pair = param_pair
+
+        def sample(pairs, params, np=jnp):
+            p = {k:v for k,v in zip(param_pair, pairs)}
+            M = init(**p, **params)
+            J = bp.block(M, np=jnp)
+    
+            (A,_),(_,D) = M
+            Aeigs = np.linalg.eigvals(A)
+            Deigs = np.linalg.eigvals(D)
+            stable = np.max(np.real(np.linalg.eigvals(J)))
+            opt1 = np.all(np.real(Aeigs)<0)
+            opt2 = np.all(np.real(Deigs)<0)
+            nash = opt1*opt2*2.-1
+            return stable, nash
+
+        self.sample = jax.vmap(sample, (0,None))
+
+    def compute(self, param_dict, lim, num):
+        xlim, ylim = lim
+        xnum, ynum = num
+
+        grid, shape = bp.grid(xlim=xlim, ylim=ylim, 
+                              xnum=xnum, ynum=ynum)
+        params = dict()
+        params.update(param_dict)
+        for k in self.param_pair:
+            params.pop(k)
+        stable, nash = self.sample(grid, params)
+        stable = np.array(stable.reshape(shape)).T
+        nash = np.array(nash.reshape(shape)).T
+
+        return stable, nash
+
+
+
 
 zero = float(0)
 config = [('g', -.5),
@@ -145,39 +192,12 @@ def update(params, plot=params_plot):
         plt.setLookupTable(lut2)
     #end TODO
 
-    def scan(s):
-        #TODO: how to scan parameters of a dictionary 
-        #efficiently without needing to recompile?
-        myparams = dict()
-        myparams.update(params)
-        for _ in s:
-            myparams.pop(_)
-        def sample(thetas, np=jnp):
-            t1,t2 = thetas
-            p = {_:t for _,t in zip(s,thetas)}
-            M = init(**p, **myparams)
-            J = bp.block(M, np=jnp)
-            (A,_),(_,D) = M
-            Aeigs = np.linalg.eigvals(A)
-            Deigs = np.linalg.eigvals(D)
-            return np.max(np.real(np.linalg.eigvals(J))), \
-                    np.all(np.real(Aeigs)<0)*np.all(np.real(Deigs)<0)*2.-1.
-        return sample
-
-    def sample(p, vs):
-        fn = scan(p)
-        return jax.vmap(fn)(vs)
-    #end TODO
-
     data_min, data_max = np.inf, -np.inf
     for i,(p1,p2,(xlim, ylim)) in enumerate(plot):
-        sample = scan((p1,p2))
         rect = QtCore.QRectF(xlim[0], ylim[0], xlim[1]-xlim[0], ylim[1]-ylim[0])
-
-        grid, shape = bp.grid(xlim=xlim, ylim=ylim, xnum=params['res'], ynum=params['res'])
-        data, nash = jax.vmap(sample)(grid)
-        data = np.array(data.reshape(shape)).T
-        nash = np.array(nash.reshape(shape)).T*1.
+        num = params['res'], params['res']
+        lim = (xlim, ylim)
+        data, nash = computes[i].compute(params, lim=lim, num=num)
         data_min = np.minimum(np.min(data), data_min)
         data_max = np.maximum(np.max(data), data_max)
         plt_imv[i].setImage(data)
@@ -201,7 +221,7 @@ def savePlot(plt, axes, lims, directory='', name=''):
 
     filename = "{}_{}_{}".format(axes[0], axes[1], name)
 
-    filename = os.path.join(directory, filename+ '.png')
+    filename = os.path.join(directory, '_' + filename+ '.png')
     print('Saving', filename)
     #img = QtGui.QImage()
     #pix = QtGui.QPixmap(img)
@@ -212,6 +232,7 @@ def savePlot(plt, axes, lims, directory='', name=''):
     #status = img.save(filename)
     status = plt.qimage.mirrored(vertical=True).save(filename)
     print('Status:', status)
+    return filename
     #exporter.export(os.path.join(directory, filename, '.png'))
 
 pg.setConfigOptions(background=(255,255,255))
@@ -240,10 +261,13 @@ p_rot = []
 plt_imv = []
 plt_imv2 = []
 plt_pair = []
+computes = []
 
 interact_parameters = InteractParameter(params=config, changing=preview, changed=update, name='M')
+num = (32,32)
 for i, (p1,p2,(xlim,ylim)) in enumerate(params_plot):
-
+    computes.append(ComputeJax(param_dict=config,
+        param_pair=(p1,p2)))
     p_rot.append(w.addPlot(row=i//2+1, col=i%2))
     plt_imv.append(pg.ImageItem())
     plt_imv2.append(pg.ImageItem())
@@ -271,7 +295,14 @@ for i, (p1,p2,(xlim,ylim)) in enumerate(params_plot):
 
 params = [interact_parameters, 
         {'name': 'save dir', 'type':'str', 'value':'figs_{}'.format(bp.datehour())},
-        {'name': 'Save figures', 'type': 'action'}]
+        {'name': 'Save figures', 'type': 'action'},
+    {'name': 'Save/Restore', 'type': 'group', 'children': [
+        {'name': 'Save State', 'type': 'action'},
+        {'name': 'Restore State', 'type': 'action', 'children': [
+            {'name': 'Add missing items', 'type': 'bool', 'value': True},
+            {'name': 'Remove extra items', 'type': 'bool', 'value': True},
+        ]},
+    ]}]
 
 p = Parameter.create(name='params', type='group', children=params)
 
@@ -285,8 +316,20 @@ def savePlots():
         print('error!')
 
     for plt1,plt2,(p1,p2,lims) in zip(plt_imv,plt_imv2,params_plot):
-        savePlot(plt1, (p1,p2), lims,directory=directory, name='stable')
-        savePlot(plt2, (p1,p2), lims,directory=directory, name='nash')
+        f1 = savePlot(plt1, (p1,p2), lims,
+                directory=directory, name='stable')
+        f2 = savePlot(plt2, (p1,p2), lims,
+                directory=directory, name='nash')
+
+        cmd = str(f1) + ' -compose Multiply '
+        cmd += str(f2) + ' '
+        cmd += os.path.join(directory,'{}_{}.png'.format(p1,p2))
+        #subprocess.call(['composite', cmd])
+        #print(cmd)
+        os.system('pwd')
+        os.system('composite '+cmd)
+
+    #composite $1_stable.png -compose Multiply $1_nash.png $1.png
 
     state = p.saveState()
     state = interact_parameters.values;
@@ -296,8 +339,27 @@ def savePlots():
     #param('M')
     print("save state is")
     print(state)
-
 p.param('Save figures').sigActivated.connect(savePlots)
+
+def save():
+    state = p.saveState()
+    directory = p.param('save dir').value()
+    try: os.mkdir(directory)
+    except FileExistsError: print('file exists')
+    except: print('error!')
+
+    with open(os.path.join(directory, 'state.pkl'), 'wb') as f:
+        pickle.dump(state, f )
+    
+def restore():
+    directory = p.param('save dir').value()
+    with open(os.path.join(directory, 'state.pkl'), 'rb') as f:
+        state = pickle.load(f)
+    add = p['Save/Restore', 'Restore State', 'Add missing items']
+    rem = p['Save/Restore', 'Restore State', 'Remove extra items']
+    p.restoreState(state, addChildren=add, removeChildren=rem)
+p.param('Save/Restore', 'Save State').sigActivated.connect(save)
+p.param('Save/Restore', 'Restore State').sigActivated.connect(restore)
 
 t = ParameterTree()
 t.setParameters(p, showTop=False)
