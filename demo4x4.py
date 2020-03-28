@@ -15,20 +15,20 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 import numpy.linalg as la
 
 zero = float(0)
-config = [('g', -.4),
+config = [('g', -.5),
           ('f', .3),
-          ('p', .2),
-          ('k', zero),
+          ('k', .2),
+          ('p', zero),
           ('da', zero),
           ('dd', zero),
-          ('dp', .1),
-          ('dk', zero),
+          ('dk', .1),
+          ('dp', zero),
           ('theta1', zero),
           ('theta2', zero),
           ('theta_a', zero),
           ('theta_d', zero),
-          ('dtheta_a', zero),
-          ('dtheta_d', zero)]
+          ('theta_k', zero),
+          ('theta_p', zero)]
 
 config_plot = [('res', 32),
         ('eps', 0.0001)]
@@ -46,34 +46,32 @@ params_plot = [('g','k', ones),
                ('dk','k', ones),
                ('dp','p', ones),
                ('g', 'theta_a', (ones[0], pis[1])),
-               ('f', 'dtheta_a', (ones[0], pis[1])),
-               ('theta_a','dtheta_a', pis),
-               ('theta_d','dtheta_a', pis),
-               ('dtheta_a','dtheta_d', pis),
+               ('f', 'theta_k', (ones[0], pis[1])),
+               ('theta_a','theta_k', pis),
+               ('theta_d','theta_k', pis),
+               ('theta_k','theta_p', pis),
                ('theta_a','theta_d', pis),]
-#               ('theta1','theta2', pis),
-#               ('dtheta_a','dtheta_d', pis)]
 
 def init(g,f,p,k, da,dd,dp,dk,
         theta1,theta2, theta_a,theta_d,
-        dtheta_a,dtheta_d, 
+        theta_k,theta_p, 
         np=jnp, **kwds):
     """ Input parameters and output matrix """
     diag = lambda x,y: np.array([[x,0],[0,y]])
     rot = lambda t: np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
     
-    a = g-f
-    d = g+f
+    a = g+f
+    d = g-f
 
-    Sa = diag(a-da, a+da)
-    Sd = diag(d-dd, d+dd)
-    Sp = diag(p-dp, p+dp)
-    Sk = diag(k-dk, k+dk)
+    Sa = diag(a+da, a-da)
+    Sd = diag(d+dd, d-dd)
+    Sp = diag(p+dp, p-dp)
+    Sk = diag(k+dk, k-dk)
     
     A = rot(theta1) @ Sa @ rot(theta1).T
     D = rot(theta2) @ Sd @ rot(theta2).T
-    P = rot(theta_a + dtheta_a) @ Sp @ rot(theta_d + dtheta_a).T
-    K = rot(theta_a - dtheta_a) @ Sk @ rot(theta_d - dtheta_d).T
+    P = rot(theta_a + theta_p) @ Sp @ rot(theta_d + theta_p).T
+    K = rot(theta_a - theta_k) @ Sk @ rot(theta_d - theta_k).T
     
     return ((A,P-K), (P.T+K.T, D))
 
@@ -90,8 +88,8 @@ def preview(params):
 
     g, f = params['g'], params['f']
 
-    a = g-f
-    d = g+f
+    a = g+f
+    d = g-f
     a1 = a + params['da']
     a2 = a - params['da']
     d1 = d + params['dd']
@@ -289,6 +287,15 @@ def savePlots():
     for plt1,plt2,(p1,p2,lims) in zip(plt_imv,plt_imv2,params_plot):
         savePlot(plt1, (p1,p2), lims,directory=directory, name='stable')
         savePlot(plt2, (p1,p2), lims,directory=directory, name='nash')
+
+    state = p.saveState()
+    state = interact_parameters.values;
+    f = open(os.path.join(directory, 'params.txt'), "w")
+    f.write(str(state))
+    f.close()
+    #param('M')
+    print("save state is")
+    print(state)
 
 p.param('Save figures').sigActivated.connect(savePlots)
 
