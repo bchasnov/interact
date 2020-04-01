@@ -1,3 +1,5 @@
+import sys
+sys.path.append('..')
 import numpy as np
 import subprocess
 import pickle
@@ -62,19 +64,19 @@ class ComputeJax():
 
 
 zero = float(0)
-config = [('g', -.5),
-          ('f', .3),
-          ('k', .2),
+config = [('m', -.5),
+          ('h', .3),
+          ('z', .2),
           ('p', zero),
           ('da', zero),
           ('dd', zero),
-          ('dk', .1),
+          ('dz', .1),
           ('dp', zero),
           ('theta1', zero),
           ('theta2', zero),
           ('theta_a', zero),
           ('theta_d', zero),
-          ('theta_k', zero),
+          ('theta_z', zero),
           ('theta_p', zero)]
 
 config_plot = [('res', 32),
@@ -84,43 +86,43 @@ config += config_plot
 
 ones = [[-1,1],[-1,1]]
 pis = [[-np.pi, np.pi],[-np.pi, np.pi]]
-params_plot = [('g','k', ones),
-               ('f','p',ones), 
+params_plot = [('m','z', ones),
+               ('h','p',ones), 
                ('da','dd', ones),
-               ('dp','dk', ones),
-               ('da','p', ones),
-               ('da','k', ones),
-               ('dk','k', ones),
-               ('dp','p', ones),
-               ('g', 'theta_a', (ones[0], pis[1])),
-               ('f', 'theta_k', (ones[0], pis[1])),
-               ('theta_a','theta_k', pis),
-               ('theta_d','theta_k', pis),
-               ('theta_k','theta_p', pis),
+               ('dz','dp', ones),
+#               ('da','p', ones),
+#               ('da','k', ones),
+#               ('dk','k', ones),
+#               ('dp','p', ones),
+#               ('g', 'theta_a', (ones[0], pis[1])),
+#               ('f', 'theta_k', (ones[0], pis[1])),
+#               ('theta_a','theta_k', pis),
+#               ('theta_d','theta_k', pis),
+               ('theta_z','theta_p', pis),
                ('theta_a','theta_d', pis),]
 
-def init(g,f,p,k, da,dd,dp,dk,
+def init(m,h,p,z, da,dd,dp,dz,
         theta1,theta2, theta_a,theta_d,
-        theta_k,theta_p, 
+        theta_z,theta_p, 
         np=jnp, **kwds):
     """ Input parameters and output matrix """
     diag = lambda x,y: np.array([[x,0],[0,y]])
     rot = lambda t: np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
     
-    a = g+f
-    d = g-f
+    a = m+h
+    d = m-h
 
     Sa = diag(a+da, a-da)
     Sd = diag(d+dd, d-dd)
     Sp = diag(p+dp, p-dp)
-    Sk = diag(k+dk, k-dk)
+    Sz = diag(z+dz, z-dz)
     
     A = rot(theta1) @ Sa @ rot(theta1).T
     D = rot(theta2) @ Sd @ rot(theta2).T
     P = rot(theta_a + theta_p) @ Sp @ rot(theta_d + theta_p).T
-    K = rot(theta_a - theta_k) @ Sk @ rot(theta_d - theta_k).T
+    Z = rot(theta_a - theta_z) @ Sz @ rot(theta_d - theta_z).T
     
-    return ((A,P-K), (P.T+K.T, D))
+    return ((A,P-Z), (P.T+Z.T, D))
 
 def run(params):
     M = init(**params)
@@ -133,7 +135,7 @@ def preview(params):
     """ Fast calculations to preview current parameters """
     eigs, qnum = run(params)
 
-    g, f = params['g'], params['f']
+    g, f = params['m'], params['h']
 
     a = g+f
     d = g-f
@@ -370,11 +372,11 @@ win.setLayout(layout)
 layout.addWidget(t, 1, 0, 1, 1)
 layout.addWidget(w, 1, 1, 1, 1);
 win.show()
-win.resize(800,1200)
+win.resize(1000,700)
 
 timer = QtCore.QTimer()
 timer.timeout.connect(lambda: update(interact_parameters.values) and timer.stop())
-timer.start(2000)
+timer.start(100)
 
 
 if __name__ == '__main__':
