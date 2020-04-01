@@ -19,8 +19,10 @@ once per terminal.
 
 Then, run
 ```
-python3 demo4x4.py
+cd demos
+python3 stability4x4.py
 ```
-for the quadratic numerical range (rotation) demo.
+for the interacting with the 
+stability and optimality regions of a 4x4 smooth game derivative.
 
 ![](screenshot.png)
