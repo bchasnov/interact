@@ -15,7 +15,6 @@ def upload(f):
 
 #import params as module
 module = upload("params.py")
-print(sys.modules)
 state = None
 modified = 0
 def tick(doc):
