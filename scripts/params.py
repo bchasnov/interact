@@ -1,9 +1,12 @@
 import jax.numpy as np
 
-def init(*args):
-    return np.array([0])
 
-def update(k, *args):
-    print(k*3,'hello world')
-    return np.array([k])
+def init(*args):
+    return 0, None
+
+def update(state, *args):
+    k, win = state
+
+    print(k)
+    return k+1, win
 
