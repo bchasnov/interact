@@ -1,9 +1,3 @@
-
-
-
-
-
-
 """
 Interact with an optimization algorithm in real-time.
 
@@ -28,7 +22,7 @@ as well changing its initializations.
 
 """
 
-
+from refresh import instance
 
 """ As an example, we consider a scalar
 polynomial game from the first example in Section 5
@@ -56,33 +50,6 @@ def init(a, d, gamma1, gamma2, np=np):
         return g, J, eigs
 
     return state, update, info
-
-global _modified
-def load(f):
-    """ Move to utils """
-    global _modified
-    _m = _modified
-    _modified = os.time.something()
-    if _modified:
-        spec = importlib.util.spec_from_file_location("params",f)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-
-    # Not modified
-    return False
-
-def instance(filename, config):
-    module = load(filename)
-
-    def tick(k):
-        module_updated = load(filename)
-        if module_updated:
-            state, update, info = module.init(**config)
-        else:
-            state = module.update(state)
-
-    return 0, tick
 
 instance("params.py", defaultConfig)
 
