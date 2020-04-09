@@ -1,3 +1,4 @@
+import importlib
 import importlib.util
 import os.path
 
@@ -26,8 +27,12 @@ def instance(filename, config):
         if _module:
             module = _module
             state, update, info = module.init(**config)
+            k = 0
         else:
             state = module.update(state)
+            k += 1
+
+        return k, module.info(state)
 
     return 0, tick
 
