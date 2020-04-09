@@ -1,120 +1,93 @@
-""" main python doc """
-
-from interact import *
-from constants import *
-from benpy import bp
-
-import pyqtgraph as pg
-import numpy as np
-import numpy.linalg as la
-#import jax.numpy as jp
-
-class ParamObj(object):
-    # Just a helper for tracking parameters and responding to changes
-    def __init__(self):
-        self.__params = {}
-
-    def __setitem__(self, item, val):
-        self.setParam(item, val)
-
-    def setParam(self, param, val):
-        self.setParams(**{param:val})
-
-    def setParams(self, **params):
-        """Set parameters for this optic. This is a good function to override for subclasses."""
-        self.__params.update(params)
-        self.paramStateChanged()
-
-    def paramStateChanged(self):
-        pass
-
-    def __getitem__(self, item):
-        # bug in pyside 1.2.2 causes getitem to be called inside QGraphicsObject.parentItem:
-        return self.getParam(item)  # PySide bug: https://bugreports.qt.io/browse/PYSIDE-671
-
-    def __len__(self):
-        # Workaround for PySide bug: https://bugreports.qt.io/browse/PYSIDE-671
-        return 0
-
-    def getParam(self, param):
-        return self.__params[param];
-
-    def __eq__(self, other):
-        raise NotImplementedError
-
-
-class ComplexPlane(pg.GraphicsObject, ParamObj):
-    pass
-
-class Array(pg.GraphicsObject, ParamObj):
-    pass
 
 
 
 
-app = pg.QtGui.QApplication([])
 
-w = pg.GraphicsLayoutWidget(show=True, border=1)
-w.resize(WINDOW_SIZE*4*16,WINDOW_SIZE*4*10)
-win.setWindowTitle(WINDOW_TITLE)
-w.show()
 
-view_items = []
+"""
+Interact with an optimization algorithm in real-time.
 
-""" Plot Eigenvalues, Quadratic Numerical Range, and Gerschgorin circles """
-eigenvalues = ComplexPlane()
-numerical_range = ComplexPlane()
-gerschgorin = Circles()
+There are two layers:
+    stochastic (init):    
+     samples initial condition of the algorithm, 
+     either initial state, or sets the seed 
+     for the iid noise of the whole trial. 
+    deterministic (update):
+     uses initial condition to run the algorithm
 
-""" Plot (g,k),(f,p) axes """
-abcd = Array()
-gkfp = Array()
-normM = Array()
-normG = Array()
+Within the deterministic update, 
+we have various 
 
-""" Collect all views """
-view_gkfp = [abcd, gkfp]
-view_complex = [eigenvalues, numerical_range, gerschgorin]
-views = [view_complex, view_gkfp]
 
-""" Calculate Function """
-def calc():
-    M = parameters.get('matrix')
-    (A,B),(C,D) = M
-    eigs = la.eigvals(bp.block(M))
-    qnr = bp.nrange.quadratic(M)
-    decomp = bp.transform.helmholtz(M)
+There is a strong emphasis on visualising and 
+communicating the progress and outcome to the user.
 
-    eigenvalues == eigs
-    numerical_range == qnr
-    gerschgorin == gersh
-    abcd == M
-    gkfp == decomp
-    normM == bp.map(la.norm, M)
+The user must be allowed to interact with the code
+in response to the progress of the algorithm, 
+as well changing its initializations.
 
-""" Add all views """
-for view in views:
-    v = w.addViewBox()
-    v.setRange(pg.QtCore.QRectF(-100,-100,100,100))
-    v.setAspectLocked()
+"""
 
-    for item in view:
-        v.addItem(item)
 
-count = 0
-def callback():
-    global count
-    print("{05d}".format(count))
-    count += 1
 
-block_matrix = BlockMatrixParameter(callback, name='M') 
-params = [block_matrix]
+""" As an example, we consider a scalar
+polynomial game from the first example in Section 5
+of (Chasnov 2020).
+"""
 
-p = Parameter.create(name='params', type='group', children=params)
-t = ParameterTree()
-t.setParameters(p, showTop=False)
+defaultConfig = dict(a=-1.1,d=1.2,gamma1=0.01,gamma2=0.02)
 
-if __name__ == '__main__':
-    import sys
-    if (sys.flags.interactive != 1):
-        QtGui.QApplication.instance().exec_()
+def init(a, d, gamma1, gamma2, np=np):
+
+    state = (1,1)
+
+    def update(k, state):
+        x, y = state
+        next_x = x + gamma1*(a*x - y + x**3)
+        next_y = y + gamma2*(d*y + 2*x)
+    
+        return (next_x, next_y)
+
+    def info(state):
+        x,y = state
+        J = np.array([[a+1/3*x**2, -1],[2,d]])
+        g = np.array([a*x - y + x**3, d*y + 2*x])
+        eigs = np.linalg.eigvals(J)
+        return g, J, eigs
+
+    return state, update, info
+
+global _modified
+def load(f):
+    """ Move to utils """
+    global _modified
+    _m = _modified
+    _modified = os.time.something()
+    if _modified:
+        spec = importlib.util.spec_from_file_location("params",f)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    # Not modified
+    return False
+
+def instance(filename, config):
+    module = load(filename)
+
+    def tick(k):
+        module_updated = load(filename)
+        if module_updated:
+            state, update, info = module.init(**config)
+        else:
+            state = module.update(state)
+
+    return 0, tick
+
+instance("params.py", defaultConfig)
+
+
+    
+    
+
+
