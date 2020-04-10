@@ -21,46 +21,19 @@ in response to the progress of the algorithm,
 as well changing its initializations.
 
 """
-
 from refresh import instance
-import numpy as np
+import importlib
+import importlib.util
 
-""" As an example, we consider a scalar
-polynomial game from the first example in Section 5
-of (Chasnov 2020).
-"""
+print(importlib.util.spec_from_file_location("modules/quartic.py"))
 
-defaultConfig = dict(a=-1.1,d=1.2,gamma1=0.01,gamma2=0.02, initial_state=[1,1])
+k, tick = instance(r"modules/quartic.py")
 
-def init(a, d, gamma1, gamma2, initial_state, np=np):
-
-    def update(k, state):
-        x, y = state
-        next_x = x + gamma1*(a*x - y + x**3)
-        next_y = y + gamma2*(d*y + 2*x)
-        return (next_x, next_y)
-
-    def info(state):
-        x,y = state
-        J = np.array([[a+1/3*x**2, -1],[2,d]])
-        g = np.array([a*x - y + x**3, d*y + 2*x])
-        eigs = np.linalg.eigvals(J)
-        return g, J, eigs
-
-    return initial_state, update, info
-
-#k, tick = instance("params.py", defaultConfig)
-
-num_iter = int(1e3)
-while True:
-    state, update, info = init(**defaultConfig)
-    for k in range(num_iter):
-        state = update(k, state)
-        if k%100 == 0:
+if __name__ == '__main__':
+    num_iter = int(1e3)
+    while True:
+        k, info = tick(k)
+        if k % 100 == 0:
             print(f"Iteration {k}")
-            print(info(state))
-
+            print(info)
     
-    
-
-

@@ -11,18 +11,20 @@ def load(f):
         if m == status: 
             return m, False
 
-        spec = importlib.util.spec_from_file_location(f)
+        spec = importlib.util.spec_from_file_location("module", f)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return m, module
 
-    return os.path.getmtime(f), refresh
+    return 0, refresh
 
-def instance(filename, config):
+def instance(filename):
     status, refresh = load(filename)
     status, module = refresh(status)
+    config = module.defaultConfig
 
     def tick(k):
+        global status
         status, _module= refresh(status)
         if _module:
             module = _module
