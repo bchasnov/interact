@@ -24,6 +24,7 @@ def instance(filename):
     config = module.defaultConfig
 
     def tick(k):
+        global status
         status, _module= refresh(status)
         if _module:
             module = _module
