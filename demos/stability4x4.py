@@ -64,65 +64,50 @@ class ComputeJax():
 
 
 zero = float(0)
-config = [('m', -.5),
-          ('h', .3),
-          ('z', .2),
+config = [('m', -5),
+          ('h', 3),
           ('p', zero),
-          ('da', zero),
-          ('dd', zero),
-          ('dz', .1),
-          ('dp', zero),
-          ('theta1', zero),
-          ('theta2', zero),
-          ('theta_a', zero),
-          ('theta_d', zero),
-          ('theta_z', zero),
-          ('theta_p', zero)]
+          ('z', 2),
+          ('h1', 3),
+          ('h2', 4),
+          ('zp', zero),
+          ('zz', 5),
+          ('t1', zero),
+          ('t2', zero),
+          ('tp', zero),
+          ('tz', zero)]
 
 config_plot = [('res', 32),
         ('eps', 0.0001)]
 
 config += config_plot
 
-ones = [[-1,1],[-1,1]]
+lim = [[-10,10],[-10,10]]
 pis = [[-np.pi, np.pi],[-np.pi, np.pi]]
-params_plot = [('m','z', ones),
-               ('h','p',ones), 
-               ('da','dd', ones),
-               ('dz','dp', ones),
-#               ('da','p', ones),
-#               ('da','k', ones),
-#               ('dk','k', ones),
-#               ('dp','p', ones),
-#               ('g', 'theta_a', (ones[0], pis[1])),
-#               ('f', 'theta_k', (ones[0], pis[1])),
-#               ('theta_a','theta_k', pis),
-#               ('theta_d','theta_k', pis),
-               ('theta_z','theta_p', pis),
-               ('theta_a','theta_d', pis),]
+params_plot = [('m','z', lim),
+               ('h','p',lim), 
+               ('h1','h2', np.array(lim)*1.2),
+               ('zp','zz', np.array(lim)*1),
+               ('t1','t2', pis),
+               ('tp','tz', pis) ]
 
-def init(m,h,p,z, da,dd,dp,dz,
-        theta1,theta2, theta_a,theta_d,
-        theta_z,theta_p, 
+def init(m,h,p,z,h1,h2,zp,zz,t1,t2,tp,tz,
         np=jnp, **kwds):
     """ Input parameters and output matrix """
     diag = lambda x,y: np.array([[x,0],[0,y]])
     rot = lambda t: np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+    z1=zp
+    z2=zz
+    I = np.eye(2)
+    L = np.eye(2)*np.array([1,-1])
+    P = rot(t1-tp).T @ ((p)*I + z1*L) @ rot(t2-tp).T
+    Z = rot(t1-tz).T @ ((z)*I + z2*L) @ rot(t2-tz)
+    A = (m+h)*I + h1*L
+    B = (P-Z)
+    C = (P.T+Z.T)
+    D = (m-h)*I + h2*L
     
-    a = m+h
-    d = m-h
-
-    Sa = diag(a+da, a-da)
-    Sd = diag(d+dd, d-dd)
-    Sp = diag(p+dp, p-dp)
-    Sz = diag(z+dz, z-dz)
-    
-    A = rot(theta1) @ Sa @ rot(theta1).T
-    D = rot(theta2) @ Sd @ rot(theta2).T
-    P = rot(theta_a + theta_p) @ Sp @ rot(theta_d + theta_p).T
-    Z = rot(theta_a - theta_z) @ Sz @ rot(theta_d - theta_z).T
-    
-    return ((A,P-Z), (P.T+Z.T, D))
+    return ((A,B), (C, D))
 
 def run(params):
     M = init(**params)
@@ -135,14 +120,14 @@ def preview(params):
     """ Fast calculations to preview current parameters """
     eigs, qnum = run(params)
 
-    g, f = params['m'], params['h']
+    m, h = params['m'], params['h']
 
-    a = g+f
-    d = g-f
-    a1 = a + params['da']
-    a2 = a - params['da']
-    d1 = d + params['dd']
-    d2 = d - params['dd']
+    a = m+h
+    d = m-h
+    a1 = a + params['h1']
+    a2 = a - params['h1']
+    d1 = d + params['h2']
+    d2 = d - params['h2']
 
     c = np.max(np.abs(np.real(qnum)))
     c = max(np.max(np.abs(np.imag(qnum))),c)
@@ -294,6 +279,7 @@ for i, (p1,p2,(xlim,ylim)) in enumerate(params_plot):
     p_rot[-1].addItem(plt_imv[-1])
     p_rot[-1].addItem(plt_imv2[-1])
     p_rot[-1].addItem(plt_pair[-1])
+    p_rot[-1].setAspectLocked()
 
 params = [interact_parameters, 
         {'name': 'save dir', 'type':'str', 'value':'figs_{}'.format(bp.datehour())},
