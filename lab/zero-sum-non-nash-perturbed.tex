@@ -1,0 +1,139 @@
+ \documentclass{standalone}
+ \usepackage{tikz}
+ \usepackage{tikz-3dplot}
+ \usepackage{pgfplots}
+ \usetikzlibrary{pgfplots.colorbrewer}
+ \begin{document}
+ \begin{tikzpicture}[scale=1]
+ %\pgfplotsset{compat=1.15}
+  %https://tex.stackexchange.com/questions/333552/
+  %plotting-a-3d-surface-in-tikz-with-a-limit-to-the-infinity
+  
+ \newcommand{\expr}[2]{0.3*((#1)*(#1) + 2*(#1)*(#2) + (#2)*(#2)/2)}
+
+
+ \begin{axis}[%
+     zmin=-1,
+     zmax=.5,
+     hide axis,
+     colormap/PuRd]
+
+   \addplot3[%
+        contour gnuplot={
+            output point meta=rawz,
+            number=28,
+            labels=false,
+        },
+        samples=64,
+        z filter/.code=\def\pgfmathresult{-1},
+    domain=-1:1,
+    domain y=-1:1]
+    {sqrt(x^2+y^2) < 1 ? 0.3*(x*x+2*x*y+y*y/2) : NaN};
+
+% x-axis
+\draw [-stealth, thick] 
+  (axis cs:-1.2,0,0)--(axis cs:1.2,0,0);    
+% z-axis (bottom)
+\draw [thick](axis cs:0,0,-1)--(axis cs:0,0,0); 
+
+% y-axis
+\draw [-stealth,thick]
+  (axis cs:0,-1.2,0)--(axis cs:0,1.2,0); 
+   
+   
+% surface saddle
+\addplot3[%
+	surf,
+	samples=32,
+%	samples=8,
+	opacity=1, domain=0:1,
+	y domain=0:360]
+    ({x*cos(y)}, 
+    {x*sin(y)}, 
+    {\expr{x*cos(y)}{x*sin(y)}});
+\fill (axis cs:0,0,0) circle[radius=10]  ;
+
+\begin{scope}[thick]
+
+% level < 0
+\foreach \i in {0} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=1]
+  ({x},{\i},{\expr{x}{\i}});%x^2/8+(\i)^2/8+3/4*x*\i});
+}
+
+\foreach \i in {0.3, 0.6, 0.9} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=0.5]
+  ({x},{\i},{\expr{x}{\i}});
+}
+\foreach \i in {-0.9, -0.6, -0.3, 0} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=0.5]
+  ({\i},{x},{\expr{\i}{x}});
+}
+\foreach \i in {0} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=1]
+  ({\i},{x},{\expr{\i}{x}});
+}
+
+% z-axis
+\draw [-stealth]
+  (axis cs:0,0,0)--(axis cs:0,0,.7); 
+
+\foreach \i in {-0.9, -0.6, -0.3} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=0.5]
+  ({x},{\i},{\expr{x}{\i}});
+}
+
+
+\foreach \i in { 0.3, 0.6, 0.9} {
+\addplot3[white, domain=-1:1, 
+  samples=30, samples y=0, opacity=0.5]
+  ({\i},{x},{\expr{\i}{x}});
+}
+
+  \end{scope}
+  
+  \begin{scope}[very thick]
+\draw[black,-stealth,opacity=0.04] (axis cs:0.100,0.100,0.011)--(axis cs:0.041,0.207,0.012);
+\draw[black,-stealth,opacity=0.08] (axis cs:0.041,0.207,0.012)--(axis cs:-0.032,0.292,0.008);
+\draw[black,-stealth,opacity=0.12] (axis cs:-0.032,0.292,0.008)--(axis cs:-0.108,0.336,-0.001);
+\draw[black,-stealth,opacity=0.16] (axis cs:-0.108,0.336,-0.001)--(axis cs:-0.175,0.328,-0.009);
+\draw[black,-stealth,opacity=0.20] (axis cs:-0.175,0.328,-0.009)--(axis cs:-0.220,0.263,-0.010);
+\draw[black,-stealth,opacity=0.24] (axis cs:-0.220,0.263,-0.010)--(axis cs:-0.232,0.144,-0.001);
+\draw[black,-stealth,opacity=0.28] (axis cs:-0.232,0.144,-0.001)--(axis cs:-0.207,-0.014,0.015);
+\draw[black,-stealth,opacity=0.32] (axis cs:-0.207,-0.014,0.015)--(axis cs:-0.142,-0.188,0.027);
+\draw[black,-stealth,opacity=0.36] (axis cs:-0.142,-0.188,0.027)--(axis cs:-0.045,-0.352,0.029);
+\draw[black,-stealth,opacity=0.40] (axis cs:-0.045,-0.352,0.029)--(axis cs:0.071,-0.474,0.015);
+\draw[black,-stealth,opacity=0.44] (axis cs:0.071,-0.474,0.015)--(axis cs:0.190,-0.530,-0.007);
+\draw[black,-stealth,opacity=0.48] (axis cs:0.190,-0.530,-0.007)--(axis cs:0.289,-0.501,-0.024);
+\draw[black,-stealth,opacity=0.52] (axis cs:0.289,-0.501,-0.024)--(axis cs:0.352,-0.383,-0.022);
+\draw[black,-stealth,opacity=0.56] (axis cs:0.352,-0.383,-0.022)--(axis cs:0.361,-0.184,0.004);
+\draw[black,-stealth,opacity=0.60] (axis cs:0.361,-0.184,0.004)--(axis cs:0.309,0.070,0.042);
+\draw[black,-stealth,opacity=0.64] (axis cs:0.309,0.070,0.042)--(axis cs:0.198,0.344,0.070);
+\draw[black,-stealth,opacity=0.68] (axis cs:0.198,0.344,0.070)--(axis cs:0.039,0.591,0.067);
+\draw[black,-stealth,opacity=0.72] (axis cs:0.039,0.591,0.067)--(axis cs:-0.146,0.766,0.027);
+\draw[black,-stealth,opacity=0.76] (axis cs:-0.146,0.766,0.027)--(axis cs:-0.328,0.831,-0.028);
+\draw[black,-stealth,opacity=0.80] (axis cs:-0.328,0.831,-0.028)--(axis cs:-0.476,0.761,-0.062);
+\draw[black,-stealth,opacity=0.84] (axis cs:-0.476,0.761,-0.062)--(axis cs:-0.559,0.551,-0.046);
+\draw[black,-stealth,opacity=0.88] (axis cs:-0.559,0.551,-0.046)--(axis cs:-0.557,0.221,0.027);
+\draw[black,-stealth,opacity=0.92] (axis cs:-0.557,0.221,0.027)--(axis cs:-0.458,-0.188,0.120);
+\draw[black,-stealth,opacity=0.96] (axis cs:-0.458,-0.188,0.120)--(axis cs:-0.269,-0.613,0.177);
+\draw[black,-stealth,opacity=1.00] (axis cs:-0.269,-0.613,0.177)--(axis cs:-0.010,-0.985,0.151);
+\end{scope}
+   
+\node [black, above right] at 
+  (axis cs:1.2,0,0) {\large $x$};
+\node [black, right] at 
+  (axis cs:0,1.2,0) {\large $y$};
+\node [black, left] at 
+  (axis cs:0,0,0.7) {\large $
+   f(x,y)$};
+
+\end{axis}
+\end{tikzpicture}
+\end{document}
+  
